@@ -1,14 +1,15 @@
 import sys, pickle
 from datetime import datetime
 
-from PyQt5.QtGui import QIcon, QStandardItemModel, QStandardItem
+from PyQt5 import QtCore
+from PyQt5.QtGui import QIcon, QStandardItemModel, QStandardItem, QTextOption, QCursor
 from bitarray import bitarray
 from functools import partial  # 使button的connect函数可带参数
 
 # pyqt的gui组件
 from PyQt5.QtCore import QRect, QModelIndex
 from PyQt5.QtWidgets import QWidget, QPushButton, QApplication, QLabel, QTextEdit, QVBoxLayout, QHBoxLayout, QLCDNumber, \
-    QLineEdit, QMainWindow, QAction, QMessageBox, QInputDialog, QTreeView, QAbstractItemView
+    QPlainTextEdit, QMainWindow, QAction, QMessageBox, QInputDialog, QTreeView, QAbstractItemView, QMenu
 
 
 class FCB:
@@ -89,12 +90,12 @@ class FileSystem:
             self.free_space = FreeSpace()
             self.disk = Disk()
             self.fat = FAT()
-            self.create_dir(self.file_tree.root, "dir1", datetime.now())
-            self.create_dir(self.file_tree.root.tree_node_children[0], "dir2", datetime.now())
-            self.create_dir(self.file_tree.root.tree_node_children[0].tree_node_children[0], "dir4", datetime.now())
-            self.create_file("file1", self.file_tree.root)
-            self.create_file("file2", self.file_tree.root.tree_node_children[0])
-            self.create_file("file3", self.file_tree.root.tree_node_children[0])
+            self.create_dir(self.file_tree.root, "文件夹1", datetime.now())
+            self.create_dir(self.file_tree.root.tree_node_children[0], "文件夹2", datetime.now())
+            self.create_dir(self.file_tree.root.tree_node_children[0].tree_node_children[0], "文件夹3", datetime.now())
+            self.create_file("文件1", self.file_tree.root)
+            self.create_file("文件2", self.file_tree.root.tree_node_children[0])
+            self.create_file("文件3", self.file_tree.root.tree_node_children[0])
 
     def find_free_index(self):
         # 0 -> free
@@ -192,8 +193,8 @@ class FileSystem:
 
     def format(self):
         print("formatting..")
-        self.file_tree.root.tree_node_children=[]
-        self.file_tree.root.leaf_node_children=[]
+        self.file_tree.root.tree_node_children = []
+        self.file_tree.root.leaf_node_children = []
         self.free_space = FreeSpace()
         self.disk = Disk()
         self.fat = FAT()
@@ -236,25 +237,23 @@ class FileSystemUI(QMainWindow):
         menuBar = self.menuBar()
         fileMenu = menuBar.addMenu("文件")
         fileMenu.addAction(QIcon('imgs/format.png'), "格式化", self.format)
-        fileMenu.addAction("保存", self.save)
+        fileMenu.addAction(QIcon('imgs/save.png'), "保存", self.save)
 
         createMenu = menuBar.addMenu("创建")
-        createMenu.addAction("创建文件", self.create_file)
-        createMenu.addAction("创建文件夹", self.create_dir)
+        createMenu.addAction(QIcon('imgs/create_file.png'), "创建文件", self.create_file)
+        createMenu.addAction(QIcon('imgs/create_dir.png'), "创建文件夹", self.create_dir)
 
         deleteMenu = menuBar.addMenu("删除")
-        deleteMenu.addAction("删除文件", self.delete_file)
+        deleteMenu.addAction(QIcon('imgs/delete_file.png'), "删除文件", self.delete_file)
         deleteMenu.addAction(QIcon('imgs/delete_dir.png'), "删除文件夹", self.delete_dir)
 
-        renameMenu = menuBar.addMenu('重命名')
-        renameMenu.addAction("重命名文件", self.rename_file)
-        renameMenu.addAction("重命名文件夹", self.rename_dir)
-
-        editMenu = menuBar.addMenu("编辑")
-        editMenu.addAction("编辑选中文件", self.edit_file)
+        renameMenu = menuBar.addMenu("重命名")
+        renameMenu.addAction(QIcon('imgs/rename.png'), "重命名文件", self.rename_file)
+        renameMenu.addAction(QIcon('imgs/rename.png'), "重命名文件夹", self.rename_dir)
 
         infoMenu = menuBar.addMenu('说明')
-        infoMenu.addAction("关于..", self.about)
+        infoMenu.addAction(QIcon('imgs/about.png'), "关于..", self.about)
+        infoMenu.addAction(QIcon('imgs/tutorial.png'), "用法", self.tutorial)
 
         # 设置layout
         widget = QWidget()
@@ -268,30 +267,66 @@ class FileSystemUI(QMainWindow):
 
         # 左侧文件树
         self.treeView = QTreeView()
-        self.model = self.build_file_tree_model()
         self.update_file_tree_model()
         self.treeView.expandAll()
-
-        # 增加点击事件
-        self.treeView.selectionModel().currentChanged.connect(self.click_item)
-        # 设为不可更改
-        self.treeView.setEditTriggers(QAbstractItemView.NoEditTriggers)
 
         h1 = QHBoxLayout()
         h1.addWidget(self.treeView)
         v1.addLayout(h1)
 
-        # 右侧文件夹内容
+        # 右侧
+        label = QLabel("当前打开文件内容")
+        label.setAlignment(QtCore.Qt.AlignCenter)
+        self.text_edit = QPlainTextEdit()
+        self.text_edit.setWordWrapMode(QTextOption.WrapAnywhere)
+        # self.text_edit.setFixedSize(500,500)
+        self.save_button = QPushButton("save")
+        self.save_button.clicked.connect(self.save_file)
+        v2 = QVBoxLayout()
+        v2.addWidget(label)
+        v2.addWidget(self.text_edit)
+        v2.addWidget(self.save_button)
+        h1.addLayout(v2)
 
         # 底部文件/文件夹信息
         self.footer = QLabel()
         v1.addWidget(self.footer)
 
+    # 关闭窗口时弹出确认消息
+    def closeEvent(self, event):
+        self.save()
+
+    def tutorial(self):
+        QMessageBox.about(self, '教程', '上方菜单栏可进行文件/文件夹操作\n'
+                                      '左侧文件树可左键选中/右键操作\n'
+                                      '右侧显示选中文件内容，点击save可保存')
+
+    def update_text_edit(self):
+        if self.cur_selected_file is not None:
+            self.text_edit.setEnabled(True)
+            self.text_edit.setPlainText(self.file_system.open_and_read_file(self.cur_selected_file))
+        else:
+            self.text_edit.setPlainText("尚未在左侧选中文件")
+            self.text_edit.setEnabled(False)
+
+    def save_file(self):
+        data = self.file_system.open_and_read_file(self.cur_selected_file)
+
+        if self.text_edit.toPlainText() == data:
+            QMessageBox.warning(self, "警告", "无任何变动！")
+            return
+
+        ans = QMessageBox.question(self, '确认', "是否保存？", QMessageBox.Yes | QMessageBox.No)
+
+        if ans == QMessageBox.Yes:
+            self.file_system.write_and_close_file(self.text_edit.toPlainText(), self.cur_selected_file)
+            self.update_footer()
+
     def click_item(self, cur: QModelIndex, pre: QModelIndex):
         reverse_cur_path = []
         file_order = cur.row()  # back up
 
-        while cur.data() != None:
+        while cur.data() is not None:
             reverse_cur_path.append(cur.data())
             cur = cur.parent()
 
@@ -305,7 +340,7 @@ class FileSystemUI(QMainWindow):
         if len(cursor.tree_node_children) - 1 < file_order:
             self.cur_selected_file = cursor.leaf_node_children[file_order - len(cursor.tree_node_children)]
             print("file ", self.cur_selected_file.file_name)
-            self.cur_selected_dir = cursor
+            self.cur_selected_dir = cursor  # 同时获得所在文件夹
         else:
             self.cur_selected_dir = cursor.tree_node_children[file_order]
             print("dir ", self.cur_selected_dir.dir_name)
@@ -315,6 +350,13 @@ class FileSystemUI(QMainWindow):
         self.update_path_label()
         # update footer
         self.update_footer()
+        # text edit
+        self.update_text_edit()
+        # button
+        if self.cur_selected_file is not None:
+            self.save_button.setEnabled(True)
+        else:
+            self.save_button.setEnabled(False)
 
     def __append_items_recursively(self, model, file_tree_node: FileTreeNode):
         for node in file_tree_node.tree_node_children:
@@ -332,16 +374,42 @@ class FileSystemUI(QMainWindow):
         self.__append_items_recursively(root_item, self.file_system.file_tree.root)
         return model
 
+    def right_click_item(self):
+        if self.cur_selected_dir is None and self.cur_selected_file is None:
+            return
+
+        right_click_menu = QMenu()
+        if self.cur_selected_file is not None:
+            right_click_menu.addAction(QIcon('imgs/delete_file.png'), "删除文件", self.delete_file)
+            right_click_menu.addAction(QIcon('imgs/rename.png'), "重命名文件", self.rename_file)
+        elif self.cur_selected_dir is not None:
+            right_click_menu.addAction(QIcon('imgs/create_file.png'), "创建文件", self.create_file)
+            right_click_menu.addAction(QIcon('imgs/create_dir.png'), "创建文件夹", self.create_dir)
+            right_click_menu.addAction(QIcon('imgs/rename.png'), "重命名文件夹", self.rename_dir)
+            right_click_menu.addAction(QIcon('imgs/delete_dir.png'), "删除文件夹", self.delete_dir)
+
+        right_click_menu.exec_(QCursor.pos())
+        right_click_menu.show()
+
     def update_file_tree_model(self):
         self.treeView.setModel(self.build_file_tree_model())
         self.treeView.expandAll()
         # 增加点击事件
         self.treeView.selectionModel().currentChanged.connect(self.click_item)
+        # 增加右击点击事件
+        self.treeView.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.treeView.customContextMenuRequested.connect(self.right_click_item)
         # 设为不可更改
         self.treeView.setEditTriggers(QAbstractItemView.NoEditTriggers)
 
+        # 鼠标滚轮
+        self.treeView.header().setStretchLastSection(True)
+        self.treeView.horizontalScrollBar().setEnabled(True)
+        self.treeView.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
+        self.treeView.verticalScrollBar().setEnabled(True)
+        self.treeView.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
+
     def update_path_label(self):
-        # if
         self.path_label.setText(" > ".join(self.cur_path))
 
     def about(self):
@@ -359,6 +427,7 @@ class FileSystemUI(QMainWindow):
             self.update_file_tree_model()
             self.update_path_label()
             self.update_footer()
+            self.update_text_edit()
 
     def create_file(self):
         new_file_name, ok = QInputDialog.getText(self, '创建文件', '输入创建文件名：')
@@ -374,6 +443,7 @@ class FileSystemUI(QMainWindow):
                 self.update_file_tree_model()
                 self.update_path_label()
                 self.update_footer()
+                self.update_text_edit()
 
     def create_dir(self):
         new_dir_name, ok = QInputDialog.getText(self, '创建文件夹', '输入创建文件夹名：')
@@ -389,6 +459,7 @@ class FileSystemUI(QMainWindow):
                 self.update_file_tree_model()
                 self.update_path_label()
                 self.update_footer()
+                self.update_text_edit()
 
     def delete_file(self):
         if self.cur_selected_file is None:
@@ -402,6 +473,7 @@ class FileSystemUI(QMainWindow):
                 self.update_file_tree_model()
                 self.update_path_label()
                 self.update_footer()
+                self.update_text_edit()
 
     def delete_dir(self):
         if self.cur_selected_dir is None:
@@ -414,9 +486,11 @@ class FileSystemUI(QMainWindow):
             if ans == QMessageBox.Yes:
                 self.file_system.delete_dir(self.cur_selected_dir)
                 self.cur_selected_dir = None
+                self.cur_selected_file = None
                 self.update_file_tree_model()
                 self.update_path_label()
                 self.update_footer()
+                self.update_text_edit()
 
     def rename_file(self):
         if self.cur_selected_file is None:
@@ -426,13 +500,14 @@ class FileSystemUI(QMainWindow):
             if ok:
                 if new_file_name == "":
                     QMessageBox.warning(self, "警告", "文件名为空！")
-                elif len([x for x in self.cur_selected_dir.leaf_node_children if x.dir_name == new_file_name]) > 0:
+                elif len([x for x in self.cur_selected_dir.leaf_node_children if x.file_name == new_file_name]) > 0:
                     QMessageBox.warning(self, "警告", "已有重复文件名！")
                 else:
                     self.file_system.rename_file(self.cur_selected_file, new_file_name, self.cur_selected_dir)
                     self.update_file_tree_model()
                     self.update_path_label()
                     self.update_footer()
+                    self.update_text_edit()
 
     def rename_dir(self):
         if self.cur_selected_dir is None:
@@ -449,51 +524,17 @@ class FileSystemUI(QMainWindow):
                     self.update_file_tree_model()
                     self.update_path_label()
                     self.update_footer()
-
-    def edit_file(self):
-        if self.cur_selected_file is None:
-            QMessageBox.warning(self, "警告", "请先在左侧选中要打开编辑的文件！")
-            return
-
-        data = self.file_system.open_and_read_file(self.cur_selected_file)
-
-        # line_edit = QLineEdit()
-        # line_edit.setFixedSize(600,600)
-        #
-        # line_edit.show()
-        # line_edit.set
-        # line_edit.setText(str(data))
-
-        # if line_edit.exec_() == line_edit.
-
-
-        input_dialog = QInputDialog(self)
-        input_dialog.setInputMode(QInputDialog.TextInput)
-        input_dialog.setWindowTitle('编辑')
-        input_dialog.setLabelText('内容\n')
-        input_dialog.setTextValue(str(data))
-        input_dialog.set
-        input_dialog.resize(500,500)
-        # input_dialog.setStyleSheet("height:500px;width:500px")################################
-
-
-        input_dialog.show()
-        if input_dialog.exec_() == input_dialog.Accepted:
-            new_data = input_dialog.textValue()  # 点击ok 后 获取输入对话框内容
-            if new_data != data:
-                self.file_system.write_and_close_file(new_data, self.cur_selected_file)
-                self.update_footer()
-
+                    self.update_text_edit()
 
     def update_footer(self):
         if self.cur_selected_dir is not None:
-            self.footer.setText("(dir) " + self.cur_selected_dir.dir_name + "   | contains " + str(
+            self.footer.setText("(selected dir) " + self.cur_selected_dir.dir_name + "   |   contains " + str(
                 self.cur_selected_dir.size()) + " items\n" +
                                 "created in " + str(self.cur_selected_dir.create_time) + ", modified in " + str(
                 self.cur_selected_dir.modify_time))
             if self.cur_selected_file is not None:
                 self.footer.setText(self.footer.text() +
-                                    "\n(file) " + self.cur_selected_file.file_name + "   | length: " + str(
+                                    "\n(selected file) " + self.cur_selected_file.file_name + "   |   length: " + str(
                     self.cur_selected_file.length) + "\n" +
                                     "created in " + str(self.cur_selected_file.create_time) + ", modified in " + str(
                     self.cur_selected_file.modify_time))
@@ -511,7 +552,7 @@ if __name__ == '__main__':
 
     u = FileSystemUI()
     # setup stylesheet
-    apply_stylesheet(app, theme='light_pink.xml')
+    apply_stylesheet(app, theme='dark_pink.xml')
 
     u.show()
     sys.exit(app.exec_())
