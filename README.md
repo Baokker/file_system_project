@@ -17,16 +17,27 @@
 ### 各部分组件说明
 
 - 顶部菜单栏，提供了所有文件操作，包括格式化，保存，增加/删除/重命名和关于，教程
+
   ![](doc_imgs/menubar.png)
+
 - 上方地址栏显示当前选中文件/文件夹绝对路径
+
   ![](doc_imgs/label.png)
+
 - 左侧文件目录，以树状结构展示文件架构
+
   ![](doc_imgs/tree.png)
+
 - 右侧文本编辑框，实时显示选中文件的内容，修改后点击下方`SAVE`按钮可保存
+
   ![](doc_imgs/textedit.png)
+
 - 下方脚注显示当前选中文件/文件夹的信息
+
   ![](doc_imgs/footer.png)
+
 - 右键显示菜单
+
   ![](doc_imgs/right_click.png)
 
 ### 实现原理
